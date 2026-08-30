@@ -1,3 +1,4 @@
+# ICE v1.0
 # This site has no login wall by design (so first responders can open it
 # instantly), which also means it's fully crawlable unless told otherwise.
 # The wildcard rule below already blocks every well-behaved crawler,

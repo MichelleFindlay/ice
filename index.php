@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+// ICE v1.0
+// Licensed under the GNU General Public License v3.0 (GPL-3.0).
+// https://github.com/MichelleFindlay/ice
+
 /*
   ---------------------------------------------------------------------------
   UNLOCK WORD (server-side)
@@ -802,6 +806,9 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
     <div class="footerActions">
       <button type="button" id="qrBtn">QR code generator</button>
       <button type="button" id="printCardBtn">Print card</button>
+    </div>
+    <div style="margin-top:.6rem;">
+      ICE v1.0 — <a href="https://github.com/MichelleFindlay/ice">source on GitHub</a>, licensed under GPL-3.0.
     </div>
   </footer>
 

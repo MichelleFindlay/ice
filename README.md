@@ -1,4 +1,4 @@
-# ice
+# ice v1.0
 
 A single-page, self-hosted "In Case of Emergency" (ICE) medical info page,
 meant to be linked from a QR code on a wristband, phone case, or wallet
@@ -91,3 +91,7 @@ reachable by scanning a QR code on something you wear.
 QR code generation uses [`qrcode-generator`](https://github.com/kazuhikoarase/qrcode-generator)
 by Kazuhiko Arase (MIT licensed), vendored in `qrcode.lib.js` so it runs
 entirely client-side with no external requests.
+
+## License
+
+GPL-3.0. See [LICENSE](LICENSE).
