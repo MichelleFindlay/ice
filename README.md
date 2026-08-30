@@ -1,4 +1,4 @@
-# ice-wristband
+# ice
 
 A single-page, self-hosted "In Case of Emergency" (ICE) medical info page,
 meant to be linked from a QR code on a wristband, phone case, or wallet
