@@ -15,10 +15,11 @@ word until someone who needs them types it in.
 ## Why
 
 The idea behind ICE (In Case of Emergency) contacts is old — it's normally
-just a contact named "ICE" in your phone. This does the same job but as a
+just a contact named "ICE" in your phone.This does the same job but as a
 page a first responder can actually read without unlocking your phone:
 conditions, allergies, medications, and care team all in one place,
-reachable by scanning a QR code on something you wear.
+reachable by scanning a QR code or going to a URL. With contact and sensitive
+information locked behind a simple word that is unique.
 
 ## Features
 
