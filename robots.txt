@@ -1,0 +1,60 @@
+# This site has no login wall by design (so first responders can open it
+# instantly), which also means it's fully crawlable unless told otherwise.
+# The wildcard rule below already blocks every well-behaved crawler,
+# search engine or AI, that respects robots.txt at all. The named entries
+# for known AI/search crawlers are just belt-and-braces — explicit in case
+# any of them only honour a rule matching their own name.
+
+User-agent: *
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
