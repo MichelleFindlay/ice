@@ -1,4 +1,5 @@
 <?php
+// ICE v1.0
 /*
   Template for sensitive-data.php.
 
