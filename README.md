@@ -1,4 +1,4 @@
-# ice v1.0
+# ice v1.0.1
 
 A single-page, self-hosted "In Case of Emergency" (ICE) medical info page,
 meant to be linked from a QR code on a wristband, phone case, or wallet
@@ -34,6 +34,13 @@ information locked behind a simple word that is unique.
 - **QR code generator** — a button on the page generates a QR code for the
   page's own URL, entirely client-side (no third-party service sees the
   URL).
+- **Update banner** — once unlocked, checks GitHub for a newer release and
+  shows a banner with a link if one exists. The check is cached for 24
+  hours, fails silently if offline, and never runs on a locked page load —
+  a stranger scanning your wristband QR code never triggers a call to
+  GitHub or waits on one. To preview the banner without waiting for a real
+  release, visit the page unlocked with `?testUpdateBanner=1` appended to
+  the URL.
 - **Printable wallet card** — generates a real credit-card-sized
   (85.6 × 53.98mm) printable card with the page's URL, a QR code, and an
   optional spot to write in the unlock word by hand or type it in before

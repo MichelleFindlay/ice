@@ -1,5 +1,5 @@
 <?php
-// ICE v1.0
+// ICE v1.0.1
 /*
   Template for profile-data.php.
 
@@ -25,6 +25,23 @@ return [
     'initials' => '[II]', // shown in the photo circle if photo.png is missing/fails to load
     'dob' => '[DD Month YYYY]',
     'language' => '[Preferred/Primary Language]',
+    // Gender/sex fields below are optional and disabled by default (left
+    // commented out). Uncomment whichever term you prefer and fill it in —
+    // each only appears on the page once set here.
+    // 'sexAssignedAtBirth' => '[Male / Female / Intersex / Prefer not to say]',
+    // 'birthSex' => '[AMAB / AFAB / Intersex / Prefer not to say]',
+    // 'natalSex' => '[AMAB / AFAB / Intersex / Prefer not to say]',
+    // 'gender' => '[e.g. Male / Female / Non-binary / Prefer not to say]',
+
+    // ---- Distinguishing marks ----
+    // Physical description — useful for identification. Leave blank or
+    // delete a line if it doesn't apply; empty/missing fields don't show up.
+    'hairColour' => '[e.g. Brown]',
+    'eyeColour' => '[e.g. Blue]',
+    'dentalWork' => '[e.g. Fillings: upper left molar / None]',
+    'tattoos' => '[e.g. Small anchor, left forearm / None]',
+    'piercings' => '[e.g. Ears, nose / None]',
+    'otherMarks' => '[e.g. Scar above right eyebrow, birthmark on left shoulder / None]',
 
     // ---- Critical medical ----
     'majorConditions' => '[e.g. Type 1 diabetes, epilepsy]',
