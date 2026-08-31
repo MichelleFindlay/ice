@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-// ICE v1.0
+define('ICE_VERSION', '1.0.1');
+
+// ICE v1.0.1
 // Licensed under the GNU General Public License v3.0 (GPL-3.0).
 // https://github.com/MichelleFindlay/ice
 
@@ -115,6 +117,16 @@ $unlocked = !empty($_SESSION['ice_unlocked']);
 $showUnlockError = !empty($_SESSION['ice_unlock_error']);
 unset($_SESSION['ice_unlock_error']);
 
+// ?testUpdateBanner=1 previews the banner with fake data instead of a real
+// GitHub lookup, so you can check how it looks/reads without needing an
+// actual newer release to exist. Gated behind $unlocked for the same reason
+// the real check is: only meaningful to the page's owner.
+if ($unlocked && isset($_GET['testUpdateBanner'])) {
+    $updateInfo = ['version' => '9.9.9', 'url' => 'https://github.com/MichelleFindlay/ice/releases/latest'];
+} else {
+    $updateInfo = $unlocked ? check_for_update(ICE_VERSION) : null;
+}
+
 $profilePath = resolve_data_path('profile-data.php', 'profile-data.example.php');
 $sensitivePath = resolve_data_path('sensitive-data.php', 'sensitive-data.example.php');
 $photoPath = resolve_data_path('photo.png', 'photo.example.png');
@@ -145,6 +157,77 @@ function ice_esc(string $value): string {
 // newer template that has added fields.
 function pf(array $data, string $key): string {
     return isset($data[$key]) ? ice_esc((string) $data[$key]) : '';
+}
+
+// Computes age in whole years from a free-text DOB string (e.g. "14 March
+// 1990"). Returns null if the value can't be parsed — e.g. unfilled
+// placeholder text like "[DD Month YYYY]" — so age is simply omitted rather
+// than erroring, and null for a future date, which can't be a birth date.
+function ice_age(string $dob): ?int {
+    $dob = trim($dob);
+    if ($dob === '') {
+        return null;
+    }
+    $timestamp = strtotime($dob);
+    if ($timestamp === false) {
+        return null;
+    }
+    $birthDate = (new DateTime())->setTimestamp($timestamp);
+    $today = new DateTime('today');
+    if ($birthDate > $today) {
+        return null;
+    }
+    return $birthDate->diff($today)->y;
+}
+
+// Checks GitHub for a newer release than $currentVersion. Deliberately
+// cautious: the result is cached to disk for a day so this never calls out
+// on every page load, the HTTP call is capped at a 3-second timeout, and any
+// failure (offline, GitHub down, allow_url_fopen disabled) is swallowed and
+// just treated as "no update info" rather than breaking the page. Callers
+// should only invoke this once $unlocked is true — a stranger scanning a
+// wristband QR code in an emergency has no reason to wait on, or even see,
+// a check for ICE's own software updates.
+function check_for_update(string $currentVersion): ?array {
+    $cachePath = __DIR__ . '/update-check-cache.php';
+    $cache = file_exists($cachePath) ? load_data_file($cachePath) : [];
+    $cacheAge = time() - (int) ($cache['checkedAt'] ?? 0);
+
+    if ($cacheAge > 86400) {
+        $latestTag = null;
+        $releaseUrl = null;
+        if (ini_get('allow_url_fopen')) {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: ice-update-check\r\nAccept: application/vnd.github+json\r\n",
+                    'timeout' => 3,
+                    'ignore_errors' => true,
+                ],
+            ]);
+            $response = @file_get_contents('https://api.github.com/repos/MichelleFindlay/ice/releases/latest', false, $context);
+            if ($response !== false) {
+                $json = json_decode($response, true);
+                if (is_array($json) && !empty($json['tag_name'])) {
+                    $latestTag = (string) $json['tag_name'];
+                    $releaseUrl = (string) ($json['html_url'] ?? ('https://github.com/MichelleFindlay/ice/releases/tag/' . $latestTag));
+                }
+            }
+        }
+        $cache = ['checkedAt' => time(), 'latestTag' => $latestTag, 'releaseUrl' => $releaseUrl];
+        @file_put_contents($cachePath, "<?php\nreturn " . var_export($cache, true) . ";\n", LOCK_EX);
+    }
+
+    if (empty($cache['latestTag'])) {
+        return null;
+    }
+
+    $latestVersion = ltrim((string) $cache['latestTag'], 'vV');
+    if (version_compare($latestVersion, $currentVersion, '<=')) {
+        return null;
+    }
+
+    return ['version' => $latestVersion, 'url' => (string) ($cache['releaseUrl'] ?? 'https://github.com/MichelleFindlay/ice/releases/latest')];
 }
 
 // Renders a masked field, or the real value once unlocked. Real values only
@@ -403,6 +486,15 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
     .card-preview-wrap{margin:0; display:block;}
   }
 
+  /* ---------- Update banner ---------- */
+  .update-banner{
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    padding:.6rem 3.6rem .6rem 1rem; /* right padding clears the fixed theme toggle */
+    font-size:.9rem; color:var(--muted);
+  }
+  .update-banner a{font-weight:700;}
+
   /* ---------- Identity header ---------- */
   header.identity{
     padding:.85rem 3.6rem .6rem 1rem; /* right padding clears the fixed theme toggle */
@@ -508,6 +600,12 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
 </head>
 <body class="<?= $unlocked ? 'unlocked' : '' ?>">
 
+  <?php if ($updateInfo !== null): ?>
+  <div class="update-banner">
+    Update available — you are running v<?= ice_esc(ICE_VERSION) ?>, the newest is v<?= ice_esc($updateInfo['version']) ?>. You can download it <a href="<?= ice_esc($updateInfo['url']) ?>" target="_blank" rel="noopener noreferrer">here</a>.
+  </div>
+  <?php endif; ?>
+
   <button type="button" id="themeToggle" aria-label="Switch between light and dark theme">🌙</button>
   <script>
   (function(){
@@ -550,11 +648,26 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
       <?php endif; ?>
       <?php
         $dobLangBits = [];
-        if (!empty($profile['dob'])) { $dobLangBits[] = '<strong>DOB:</strong> ' . pf($profile, 'dob'); }
+        if (!empty($profile['dob'])) {
+            $dobText = '<strong>DOB:</strong> ' . pf($profile, 'dob');
+            $age = ice_age((string) $profile['dob']);
+            if ($age !== null) { $dobText .= ' (age ' . $age . ')'; }
+            $dobLangBits[] = $dobText;
+        }
         if (!empty($profile['language'])) { $dobLangBits[] = '<strong>Speaks:</strong> ' . pf($profile, 'language'); }
       ?>
       <?php if ($dobLangBits): ?>
       <div class="identity-meta"><?= implode(' · ', $dobLangBits) ?></div>
+      <?php endif; ?>
+      <?php
+        $sexBits = [];
+        if (!empty($profile['gender'])) { $sexBits[] = '<strong>Gender:</strong> ' . pf($profile, 'gender'); }
+        if (!empty($profile['sexAssignedAtBirth'])) { $sexBits[] = '<strong>Sex assigned at birth:</strong> ' . pf($profile, 'sexAssignedAtBirth'); }
+        if (!empty($profile['birthSex'])) { $sexBits[] = '<strong>Birth sex:</strong> ' . pf($profile, 'birthSex'); }
+        if (!empty($profile['natalSex'])) { $sexBits[] = '<strong>Natal sex:</strong> ' . pf($profile, 'natalSex'); }
+      ?>
+      <?php if ($sexBits): ?>
+      <div class="identity-meta"><?= implode(' · ', $sexBits) ?></div>
       <?php endif; ?>
       <div class="identity-meta">
         <strong>Home address:</strong>
@@ -685,6 +798,41 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
   </section>
 
   <details>
+    <summary>Distinguishing marks</summary>
+    <dl>
+      <?php if (!empty($profile['hairColour'])): ?>
+      <dt>Hair colour</dt>
+      <dd><?= pf($profile, 'hairColour') ?></dd>
+      <?php endif; ?>
+
+      <?php if (!empty($profile['eyeColour'])): ?>
+      <dt>Eye colour</dt>
+      <dd><?= pf($profile, 'eyeColour') ?></dd>
+      <?php endif; ?>
+
+      <?php if (!empty($profile['dentalWork'])): ?>
+      <dt>Fillings / dental work</dt>
+      <dd><?= pf($profile, 'dentalWork') ?></dd>
+      <?php endif; ?>
+
+      <?php if (!empty($profile['tattoos'])): ?>
+      <dt>Tattoos</dt>
+      <dd><?= pf($profile, 'tattoos') ?></dd>
+      <?php endif; ?>
+
+      <?php if (!empty($profile['piercings'])): ?>
+      <dt>Piercings</dt>
+      <dd><?= pf($profile, 'piercings') ?></dd>
+      <?php endif; ?>
+
+      <?php if (!empty($profile['otherMarks'])): ?>
+      <dt>Other marks (scars, birthmarks, etc.)</dt>
+      <dd><?= pf($profile, 'otherMarks') ?></dd>
+      <?php endif; ?>
+    </dl>
+  </details>
+
+  <details>
     <summary>Medical history</summary>
     <dl>
       <?php if (!empty($profile['surgeries'])): ?>
@@ -808,7 +956,7 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
       <button type="button" id="printCardBtn">Print card</button>
     </div>
     <div style="margin-top:.6rem;">
-      ICE v1.0 — <a href="https://github.com/MichelleFindlay/ice">source on GitHub</a>, licensed under GPL-3.0.
+      ICE v<?= ice_esc(ICE_VERSION) ?> — <a href="https://github.com/MichelleFindlay/ice">source on GitHub</a>, licensed under GPL-3.0.
     </div>
   </footer>
 

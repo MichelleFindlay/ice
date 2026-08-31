@@ -1,5 +1,5 @@
 <?php
-// ICE v1.0
+// ICE v1.0.1
 /*
   Template for config.php.
 
