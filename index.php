@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 
-define('ICE_VERSION', '1.0.1');
+define('ICE_VERSION', '1.0.2');
 
-// ICE v1.0.1
+// ICE v1.0.2
 // Licensed under the GNU General Public License v3.0 (GPL-3.0).
 // https://github.com/MichelleFindlay/ice
 
@@ -71,11 +71,44 @@ $config = load_data_file($configPath);
 $unlockWord = strtolower((string) ($config['unlockWord'] ?? ''));
 $siteUrl = (string) ($config['siteUrl'] ?? '');
 
-ini_set('session.cookie_httponly', '1');
-if (!empty($_SERVER['HTTPS'])) {
-    ini_set('session.cookie_secure', '1');
+$isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+
+// The __Host- prefix makes the browser refuse the cookie unless it is
+// Secure, Path=/ and has no Domain — so it can't be set or overwritten by
+// a sibling subdomain. It's only valid over HTTPS, so plain-HTTP local
+// testing falls back to PHP's default name.
+if ($isHttps) {
+    session_name('__Host-ICESESSID');
 }
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => $isHttps,
+    'httponly' => true,
+    'samesite' => 'Strict',
+]);
 session_start();
+
+// Security headers. Every <script> and <style> on the page carries this
+// per-request nonce, so the CSP can forbid all other inline code — an
+// injected <script> or on*="" handler simply won't run. Everything the page
+// loads (qrcode.lib.js, photo.png) is same-origin, so nothing else is
+// allowed.
+$cspNonce = base64_encode(random_bytes(16));
+header_remove('X-Powered-By');
+header("Content-Security-Policy: default-src 'none'; script-src 'self' 'nonce-{$cspNonce}'; style-src 'nonce-{$cspNonce}'; img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests");
+if ($isHttps) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
+// no-referrer: nothing about this page (a medical profile) leaks to the
+// sites it links out to.
+header('Referrer-Policy: no-referrer');
+header('Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), interest-cohort=()');
+header('Cross-Origin-Opener-Policy: same-origin');
+header('Cross-Origin-Resource-Policy: same-origin');
+header('Cross-Origin-Embedder-Policy: require-corp');
 
 // This page must never be cached — not by the browser's disk cache, its
 // back-forward cache, or any proxy in between. That matters most once
@@ -260,7 +293,7 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
 <link rel="canonical" href="<?= ice_esc($siteUrl) ?>">
 <?php endif; ?>
 <title>ICE — Emergency Medical Information</title>
-<script>
+<script nonce="<?= $cspNonce ?>">
   // Applied before the CSS paints, so there's no flash of the wrong theme.
   // Purely a display preference — not sensitive, safe to run before the
   // unlock check below.
@@ -273,7 +306,7 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
     } catch (e) {}
   })();
 </script>
-<style>
+<style nonce="<?= $cspNonce ?>">
   /*
     HOW TO EDIT THIS PAGE
     ----------------------
@@ -580,6 +613,8 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
 
   footer{padding:1.2rem 1rem 1.5rem; color:var(--muted); font-size:.85rem;}
   footer strong{color:var(--ink);}
+  .footer-note{margin-top:.4rem;}
+  .footer-credit{margin-top:.6rem;}
   .footerActions{display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.9rem;}
   .footerActions button{
     font-size:1rem; padding:.7rem 1rem; border-radius:8px; /* >=44px tall touch target */
@@ -607,7 +642,7 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
   <?php endif; ?>
 
   <button type="button" id="themeToggle" aria-label="Switch between light and dark theme">🌙</button>
-  <script>
+  <script nonce="<?= $cspNonce ?>">
   (function(){
     var root = document.documentElement;
     var btn = document.getElementById('themeToggle');
@@ -633,9 +668,22 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
   </script>
 
   <header class="identity">
-    <img class="photo" src="photo.png?v=<?= $photoMtime ?>" alt="Photo of <?= pf($profile, 'fullName') ?>"
-         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <img class="photo" src="photo.png?v=<?= $photoMtime ?>" alt="Photo of <?= pf($profile, 'fullName') ?>">
     <div class="photo-fallback" aria-hidden="true"><?= pf($profile, 'initials') ?></div>
+    <script nonce="<?= $cspNonce ?>">
+    // Swap in the initials if photo.png is missing. Done here rather than
+    // in an onerror="" attribute, which the CSP blocks; the complete check
+    // covers an error that fired before this script ran.
+    (function(){
+      var img = document.querySelector('.identity .photo');
+      function fallback(){
+        img.style.display = 'none';
+        img.nextElementSibling.style.display = 'flex';
+      }
+      if (img.complete && img.naturalWidth === 0) { fallback(); }
+      else { img.addEventListener('error', fallback); }
+    })();
+    </script>
     <div class="identity-text">
       <h1><?= pf($profile, 'fullName') ?></h1>
       <?php
@@ -950,12 +998,12 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
 
   <footer>
     <div><strong>Last updated:</strong> <?= ice_esc($lastUpdatedText) ?>.</div>
-    <div style="margin-top:.4rem;">This page shows critical medical information openly, with no login, so first responders can act on it immediately. Only your address, phone numbers and ID numbers are gated behind the unlock word below.</div>
+    <div class="footer-note">This page shows critical medical information openly, with no login, so first responders can act on it immediately. Only your address, phone numbers and ID numbers are gated behind the unlock word below.</div>
     <div class="footerActions">
       <button type="button" id="qrBtn">QR code generator</button>
       <button type="button" id="printCardBtn">Print card</button>
     </div>
-    <div style="margin-top:.6rem;">
+    <div class="footer-credit">
       ICE v<?= ice_esc(ICE_VERSION) ?> — <a href="https://github.com/MichelleFindlay/ice">source on GitHub</a>, licensed under GPL-3.0.
     </div>
   </footer>
@@ -1031,8 +1079,8 @@ function sensitive_tel(array $data, string $key, bool $unlocked): string {
     </div>
   </dialog>
 
-  <script src="qrcode.lib.js"></script>
-  <script>
+  <script src="qrcode.lib.js" nonce="<?= $cspNonce ?>"></script>
+  <script nonce="<?= $cspNonce ?>">
   (function(){
     // Shared open/close/backdrop-click wiring for the QR and print-card
     // dialogs — both are plain <dialog> popups with the same interaction
