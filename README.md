@@ -1,4 +1,4 @@
-# ice v1.0.1
+# ice v1.0.2
 
 A single-page, self-hosted "In Case of Emergency" (ICE) medical info page,
 meant to be linked from a QR code on a wristband, phone case, or wallet
